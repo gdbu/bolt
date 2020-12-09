@@ -66,7 +66,7 @@ type DB struct {
 	// Skipping truncation avoids preallocation of hard drive space and
 	// bypasses a truncate() and fsync() syscall on remapping.
 	//
-	// https://github.com/boltdb/bolt/issues/284
+	// https://github.com/gdbu/bolt/issues/284
 	NoGrowSync bool
 
 	// If you want to read the entire database fast, you can set MmapFlag to
@@ -871,7 +871,7 @@ func (db *DB) grow(sz int) error {
 	}
 
 	// Truncate and fsync to ensure file size metadata is flushed.
-	// https://github.com/boltdb/bolt/issues/284
+	// https://github.com/gdbu/bolt/issues/284
 	if !db.NoGrowSync && !db.readOnly {
 		if runtime.GOOS != "windows" {
 			if err := db.file.Truncate(int64(sz)); err != nil {

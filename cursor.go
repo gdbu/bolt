@@ -36,7 +36,7 @@ func (c *Cursor) First() (key []byte, value []byte) {
 	c.first()
 
 	// If we land on an empty page then move to the next value.
-	// https://github.com/boltdb/bolt/issues/450
+	// https://github.com/gdbu/bolt/issues/450
 	if c.stack[len(c.stack)-1].count() == 0 {
 		c.next()
 	}
@@ -240,7 +240,7 @@ func (c *Cursor) next() (key []byte, value []byte, flags uint32) {
 		c.first()
 
 		// If this is an empty page then restart and move back up the stack.
-		// https://github.com/boltdb/bolt/issues/450
+		// https://github.com/gdbu/bolt/issues/450
 		if c.stack[len(c.stack)-1].count() == 0 {
 			continue
 		}

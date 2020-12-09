@@ -229,7 +229,7 @@ func (n *node) write(p *page) {
 		// If the length of key+value is larger than the max allocation size
 		// then we need to reallocate the byte array pointer.
 		//
-		// See: https://github.com/boltdb/bolt/pull/335
+		// See: https://github.com/gdbu/bolt/pull/335
 		klen, vlen := len(item.key), len(item.value)
 		if len(b) < klen+vlen {
 			b = (*[maxAllocSize]byte)(unsafe.Pointer(&b[0]))[:]
@@ -587,9 +587,11 @@ func (n *node) dump() {
 
 type nodes []*node
 
-func (s nodes) Len() int           { return len(s) }
-func (s nodes) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
-func (s nodes) Less(i, j int) bool { return bytes.Compare(s[i].inodes[0].key, s[j].inodes[0].key) == -1 }
+func (s nodes) Len() int      { return len(s) }
+func (s nodes) Swap(i, j int) { s[i], s[j] = s[j], s[i] }
+func (s nodes) Less(i, j int) bool {
+	return bytes.Compare(s[i].inodes[0].key, s[j].inodes[0].key) == -1
+}
 
 // inode represents an internal node inside of a node.
 // It can be used to point to elements in a page or point

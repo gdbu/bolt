@@ -19,7 +19,7 @@ import (
 	"time"
 	"unsafe"
 
-	"github.com/boltdb/bolt"
+	"github.com/gdbu/bolt"
 )
 
 var statsFlag = flag.Bool("stats", false, "show performance stats")
@@ -180,7 +180,7 @@ func TestOpen_ErrChecksum(t *testing.T) {
 }
 
 // Ensure that opening a database does not increase its size.
-// https://github.com/boltdb/bolt/issues/291
+// https://github.com/gdbu/bolt/issues/291
 func TestOpen_Size(t *testing.T) {
 	// Open a data file.
 	db := MustOpenDB()
@@ -240,7 +240,7 @@ func TestOpen_Size(t *testing.T) {
 }
 
 // Ensure that opening a database beyond the max step size does not increase its size.
-// https://github.com/boltdb/bolt/issues/303
+// https://github.com/gdbu/bolt/issues/303
 func TestOpen_Size_Large(t *testing.T) {
 	if testing.Short() {
 		t.Skip("short mode")
