@@ -8,6 +8,7 @@ import (
 	"log"
 	"math/rand"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"testing"
@@ -15,6 +16,116 @@ import (
 
 	"github.com/gdbu/bolt"
 )
+
+func TestBucket_InlineBoundaryReopen(t *testing.T) {
+	type entry struct{ key, value []byte }
+	type fixture struct {
+		name    string
+		entries []entry
+		inline  bool
+	}
+	var fixtures []fixture
+	for _, keySize := range []int{15, 16, 17} {
+		for vi, value := range [][]byte{nil, {}, {'v'}} {
+			for _, count := range []int{1, 2} {
+				f := fixture{name: fmt.Sprintf("key%d_value%d_count%d", keySize, vi, count), inline: true}
+				if count == 2 {
+					f.entries = append(f.entries, entry{[]byte("a"), []byte("first")})
+				}
+				f.entries = append(f.entries, entry{bytes.Repeat([]byte("k"), keySize), value})
+				fixtures = append(fixtures, f)
+			}
+		}
+	}
+	large := fixture{name: "branch-overflow"}
+	for i := 0; i < 500; i++ {
+		large.entries = append(large.entries, entry{[]byte(fmt.Sprintf("%032d", i)), bytes.Repeat([]byte("v"), 80)})
+	}
+	large.entries = append(large.entries, entry{[]byte("overflow"), bytes.Repeat([]byte("z"), 8*os.Getpagesize())})
+	fixtures = append(fixtures, large)
+
+	path := filepath.Join(t.TempDir(), "inline.db")
+	db, err := bolt.Open(path, 0600, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		if db != nil {
+			if err := db.Close(); err != nil {
+				t.Error(err)
+			}
+		}
+	})
+	verify := func() {
+		t.Helper()
+		if err := db.View(func(tx *bolt.Tx) error {
+			for _, f := range fixtures {
+				b := tx.Bucket([]byte(f.name))
+				if b == nil {
+					return fmt.Errorf("%s: bucket missing", f.name)
+				}
+				s := b.Stats()
+				if (s.InlineBucketN == 1) != f.inline {
+					return fmt.Errorf("%s: unexpected inline count %d", f.name, s.InlineBucketN)
+				}
+				if !f.inline && (s.BranchPageN == 0 || s.LeafOverflowN == 0) {
+					return fmt.Errorf("%s: control did not exercise branch and overflow pages: %+v", f.name, s)
+				}
+				c := b.Cursor()
+				k, v := c.First()
+				for _, e := range f.entries {
+					got := b.Get(e.key)
+					if !bytes.Equal(k, e.key) || v == nil || got == nil || !bytes.Equal(v, e.value) || !bytes.Equal(got, e.value) {
+						return fmt.Errorf("%s: key %q changed or empty value became nil", f.name, e.key)
+					}
+					if cap(k) != len(k) || cap(v) != len(v) || cap(got) != len(got) {
+						return fmt.Errorf("%s: key %q has an unbounded slice capacity", f.name, e.key)
+					}
+					k, v = c.Next()
+				}
+				if k != nil || v != nil || b.Get([]byte("missing")) != nil {
+					return fmt.Errorf("%s: unexpected extra entry", f.name)
+				}
+			}
+			var checkErr error
+			for err := range tx.Check() {
+				if checkErr == nil {
+					checkErr = err
+				}
+			}
+			return checkErr
+		}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for round := 0; round < 2; round++ {
+		if err := db.Update(func(tx *bolt.Tx) error {
+			for _, f := range fixtures {
+				b, err := tx.CreateBucketIfNotExists([]byte(f.name))
+				if err != nil {
+					return err
+				}
+				for _, e := range f.entries {
+					if err := b.Put(e.key, e.value); err != nil {
+						return err
+					}
+				}
+			}
+			return nil
+		}); err != nil {
+			t.Fatal(err)
+		}
+		verify()
+		if err := db.Close(); err != nil {
+			t.Fatal(err)
+		}
+		db, err = bolt.Open(path, 0600, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		verify()
+	}
+}
 
 // Ensure that a bucket that gets a non-existent key returns nil.
 func TestBucket_Get_NonExistent(t *testing.T) {

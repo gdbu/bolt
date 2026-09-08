@@ -123,7 +123,10 @@ func (n *leafPageElement) key() []byte {
 // value returns a byte slice of the node value.
 func (n *leafPageElement) value() []byte {
 	buf := (*[maxAllocSize]byte)(unsafe.Pointer(n))
-	return (*[maxAllocSize]byte)(unsafe.Pointer(&buf[n.pos+n.ksize]))[:n.vsize:n.vsize]
+	// Derive an empty value from a bounded item slice, not a pointer past
+	// the allocation when the key fills an inline bucket.
+	item := (*[maxAllocSize]byte)(unsafe.Pointer(&buf[n.pos]))[: n.ksize+n.vsize : n.ksize+n.vsize]
+	return item[n.ksize:]
 }
 
 // PageInfo represents human readable information about a page.

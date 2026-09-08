@@ -235,11 +235,14 @@ func (n *node) write(p *page) {
 			b = (*[maxAllocSize]byte)(unsafe.Pointer(&b[0]))[:]
 		}
 
-		// Write data for the element to the end of the page.
-		copy(b[0:], item.key)
-		b = b[klen:]
-		copy(b[0:], item.value)
-		b = b[vlen:]
+		// Inline buckets can end exactly at an allocation boundary. Keep the
+		// value slice inside this item, including an empty final value.
+		data := b[: klen+vlen : klen+vlen]
+		copy(data, item.key)
+		copy(data[klen:], item.value)
+		if i+1 < len(n.inodes) {
+			b = b[klen+vlen:]
+		}
 	}
 
 	// DEBUG ONLY: n.dump()

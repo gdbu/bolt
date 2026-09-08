@@ -1,9 +1,46 @@
 package bolt
 
 import (
+	"bytes"
+	"fmt"
+	"runtime"
 	"testing"
 	"unsafe"
 )
+
+func TestNode_write_InlineAllocationBoundary(t *testing.T) {
+	done, stopped := make(chan struct{}), make(chan struct{})
+	go func() {
+		defer close(stopped)
+		for {
+			select {
+			case <-done:
+				return
+			default:
+				runtime.GC()
+			}
+		}
+	}()
+	defer func() { close(done); <-stopped }()
+	for _, keySize := range []int{15, 16, 17} {
+		for _, valueSize := range []int{0, 1} {
+			t.Run(fmt.Sprintf("key%d_value%d", keySize, valueSize), func(t *testing.T) {
+				key, value := bytes.Repeat([]byte("k"), keySize), bytes.Repeat([]byte("v"), valueSize)
+				for i := 0; i < 10000; i++ {
+					n := &node{isLeaf: true, inodes: inodes{{key: key, value: value}}}
+					b := &Bucket{bucket: &bucket{}, rootNode: n}
+					buf := b.write()
+					p := (*page)(unsafe.Pointer(&buf[bucketHeaderSize]))
+					elem := p.leafPageElement(0)
+					if !bytes.Equal(elem.key(), key) || !bytes.Equal(elem.value(), value) {
+						t.Fatal("inline entry changed during serialization")
+					}
+					runtime.KeepAlive(buf)
+				}
+			})
+		}
+	}
+}
 
 // Ensure that a node can insert a key/value.
 func TestNode_put(t *testing.T) {
