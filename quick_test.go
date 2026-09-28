@@ -7,6 +7,7 @@ import (
 	"math/rand"
 	"os"
 	"reflect"
+	"sync"
 	"testing/quick"
 	"time"
 )
@@ -29,12 +30,17 @@ func init() {
 	flag.IntVar(&qmaxitems, "quick.maxitems", 1000, "")
 	flag.IntVar(&qmaxksize, "quick.maxksize", 1024, "")
 	flag.IntVar(&qmaxvsize, "quick.maxvsize", 1024, "")
-	flag.Parse()
-	fmt.Fprintln(os.Stderr, "seed:", qseed)
-	fmt.Fprintf(os.Stderr, "quick settings: count=%v, items=%v, ksize=%v, vsize=%v\n", qcount, qmaxitems, qmaxksize, qmaxvsize)
 }
 
+// The test binary parses these flags; parsing them in init, before the testing
+// package has registered its own, refuses every -test.* flag go test passes.
+var reportQuickSettings sync.Once
+
 func qconfig() *quick.Config {
+	reportQuickSettings.Do(func() {
+		fmt.Fprintln(os.Stderr, "seed:", qseed)
+		fmt.Fprintf(os.Stderr, "quick settings: count=%v, items=%v, ksize=%v, vsize=%v\n", qcount, qmaxitems, qmaxksize, qmaxvsize)
+	})
 	return &quick.Config{
 		MaxCount: qcount,
 		Rand:     rand.New(rand.NewSource(int64(qseed))),

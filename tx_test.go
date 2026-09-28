@@ -62,6 +62,11 @@ func TestTx_Commit_ErrTxNotWritable(t *testing.T) {
 	if err := tx.Commit(); err != bolt.ErrTxNotWritable {
 		t.Fatal(err)
 	}
+	// A read transaction left open holds the mmap lock, and the consistency check
+	// at close must remap the file where pages are 16 KiB.
+	if err := tx.Rollback(); err != nil {
+		t.Fatal(err)
+	}
 }
 
 // Ensure that a transaction can retrieve a cursor on the root bucket.

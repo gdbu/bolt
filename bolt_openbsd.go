@@ -25,3 +25,8 @@ func fdatasync(db *DB) error {
 	}
 	return db.file.Sync()
 }
+
+// fileSync flushes the whole database file as it grows.
+func fileSync(db *DB) error {
+	return db.file.Sync()
+}

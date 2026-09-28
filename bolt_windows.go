@@ -47,6 +47,11 @@ func fdatasync(db *DB) error {
 	return db.file.Sync()
 }
 
+// fileSync flushes the whole database file as it grows.
+func fileSync(db *DB) error {
+	return db.file.Sync()
+}
+
 // flock acquires an advisory lock on a file descriptor.
 func flock(db *DB, mode os.FileMode, exclusive bool, timeout time.Duration) error {
 	// Create a separate lock file on windows because a process

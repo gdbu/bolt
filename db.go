@@ -878,7 +878,7 @@ func (db *DB) grow(sz int) error {
 				return fmt.Errorf("file resize error: %s", err)
 			}
 		}
-		if err := db.file.Sync(); err != nil {
+		if err := fileSync(db); err != nil {
 			return fmt.Errorf("file sync error: %s", err)
 		}
 	}

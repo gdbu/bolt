@@ -1135,6 +1135,9 @@ func TestBucket_Put_ValueTooLarge(t *testing.T) {
 
 // Ensure a bucket can calculate stats.
 func TestBucket_Stats(t *testing.T) {
+	if os.Getpagesize() != 4096 {
+		t.Skip("the expected page counts assume 4 KiB pages")
+	}
 	db := MustOpenDB()
 	defer db.MustClose()
 
@@ -1516,6 +1519,9 @@ func TestBucket_Stats_Nested(t *testing.T) {
 
 // Ensure a large bucket can calculate stats.
 func TestBucket_Stats_Large(t *testing.T) {
+	if os.Getpagesize() != 4096 {
+		t.Skip("the expected page counts assume 4 KiB pages")
+	}
 	if testing.Short() {
 		t.Skip("skipping test in short mode.")
 	}
